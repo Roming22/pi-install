@@ -8,9 +8,22 @@
 # https://cloudinit.readthedocs.io/
 #
 
+hostname: %host.name%
+
 # On first boot, set the (default) ubuntu user's password
 chpasswd:
   expire: false
   list:
   - ubuntu:%user.ubuntu.password%
 
+ssh_authorized_keys:
+  - %/home/rarnaud/.ssh/id_rsa.pub%
+
+# Enable password authentication with the SSH daemon
+ssh_pwauth: true
+
+# Reboot after first boot
+power_state:
+  delay: "now"
+  message: Device is configured and up to date. Rebooting...
+  mode: reboot
