@@ -1,8 +1,10 @@
 #!/bin/bash -e
 set -o pipefail
+SCRIPT_DIR="$(cd "$(dirname "$0")"; pwd)"
 #set -x
+DISK="$1"
 UBUNTU_VERSION="20.10"
-TMP_DIR="$(cd "$(dirname "$0")"; pwd)/tmp"
+TMP_DIR="${SCRIPT_DIR}/tmp"
 
 now(){
 	date +%H:%M:%S
@@ -14,76 +16,122 @@ if [[ "$UID" != "0" ]]; then
 	exit 1
 fi
 
-echo "$(now) Looking for device..."
 list_disks(){
 	lsblk -l -o NAME,TYPE | grep -E "\sdisk$" | cut -d" " -f1
 }
-# Wait for the disk to be inserted
-DISK_COUNT="$(list_disks | wc -l)"
-DISK_LIST="$(list_disks | sed "s:.*:^\0$:" | tr "\n" "|")"
-DISK_LIST="${DISK_LIST%?}"
-echo "Insert the device to continue"
-while [[ $(list_disks | wc -l) -eq "${DISK_COUNT}" ]]; do
-	sleep 1
-done
-DISK="/dev/$(list_disks | grep -v $DISK_LIST)"
 
-# Check that the boot disk was not found by mistakea
-if [[ $(df | grep "${DISK}" | grep -c "/boot") != "0" ]]; then
-	echo "Something unexpected happened. Try again." >&2
-	exit 1
-fi
+wait_for_disk(){
+    # Wait for the disk to be inserted
+	echo "$(now) Looking for device..."
+    DISK_COUNT="$(list_disks | wc -l)"
+    DISK_LIST="$(list_disks | sed "s:.*:^\0$:" | tr "\n" "|")"
+    DISK_LIST="${DISK_LIST%?}"
+    echo "Insert the device to continue"
+    while [[ $(list_disks | wc -l) -eq "${DISK_COUNT}" ]]; do
+        sleep 1
+    done
+    DISK="/dev/$(list_disks | grep -v $DISK_LIST)"
+}
 
-# Warn user before wiping the disk
-echo "All data on $DISK is going to be lost."
-while true; do
-	read -r -p "Do you want to continue? [y|N]: " ANSWER
-	case "${ANSWER}" in
-		y|Y) break ;;
-		n|N|"") echo "[Interrupted]"; exit 0;;
-	esac
-done
+get_disk(){
+	if [[ -n "${DISK}" ]]; then
+		if [[ ! -e "${DISK}" ]]; then
+			echo "${DISK} not found" >&2
+			exit 1
+		fi
+	else
+		wait_for_disk
+	fi
 
-mkdir -p "$TMP_DIR"
+	# Check that the boot disk was not found by mistakea
+	if [[ $(df | grep "${DISK}" | grep -c "/boot") != "0" ]]; then
+		echo "Something unexpected happened. Try again." >&2
+		exit 1
+	fi
+}
 
-echo "$(now) Downloading image..."
-unset TYPE
-echo "Which image do you want to download:"
-echo "  1- Desktop"
-echo "  2- Server"
-while true; do
-	read -r -p "Select image: " ANSWER
-	case "${ANSWER}" in
-		1) TYPE="desktop" ;;
-		2) TYPE="server" ;;
-	esac
-	[[ -z "$TYPE" ]] || break
-done
-IMAGE="${TMP_DIR}/ubuntu-${UBUNTU_VERSION}-${TYPE}.img.xz"
-[[ -e "${IMAGE}" ]] || curl -o "${IMAGE}" "https://cdimage.ubuntu.com/releases/${UBUNTU_VERSION}/release/ubuntu-${UBUNTU_VERSION}-preinstalled-${TYPE}-arm64+raspi.img.xz"
+download_image(){
+	mkdir -p "$TMP_DIR"
 
-echo "$(now) Unmounting all partitions..."
-df | grep -E "^${DISK}p?[0-9]+\s" | cut -d" " -f1 | xargs --no-run-if-empty umount -f || true
+	echo "$(now) Downloading image..."
+	unset TYPE
+	echo "Which image do you want to download:"
+	echo "  1- Desktop"
+	echo "  2- Server"
+	while true; do
+		read -r -p "Select image: " ANSWER
+		case "${ANSWER}" in
+			1) TYPE="desktop" ;;
+			2) TYPE="server" ;;
+		esac
+		[[ -z "$TYPE" ]] || break
+	done
+	IMAGE="${TMP_DIR}/ubuntu-${UBUNTU_VERSION}-${TYPE}.img.xz"
+	[[ -e "${IMAGE}" ]] || curl -o "${IMAGE}" "https://cdimage.ubuntu.com/releases/${UBUNTU_VERSION}/release/ubuntu-${UBUNTU_VERSION}-preinstalled-${TYPE}-arm64+raspi.img.xz"
+}
 
-echo "$(now) Copying image to device..."
-xzcat "$IMAGE" | dd bs=4M of="${DISK}" status=progress
+unmount_partitions(){
+	df | grep -E "^${DISK}p?[0-9]+\s" | cut -d" " -f1 | xargs --no-run-if-empty umount -f || true
+}
 
-echo "$(now) Remounting filesystems..."
-partprobe "${DISK}"
-for PART in system-boot, writeable; do
-	PART_NUM="$(( PART_NUM+1 ))"
-	mkdir -p "${TMP_DIR}/${PART}
-	"$(ls "${DISK}${PART_NUM}" || mount "${DISK}p${PART_NUM}")" "${TMP_DIR}/${PART}
-done
+copy_image(){
+	unmount_partitions
+	echo "$(now) Copying image to device..."
 
-# echo "$(now) Configuring first boot process..."
+	# Warn user before wiping the disk
+    echo "All data on $DISK is going to be lost."
+    while true; do
+        read -r -p "Do you want to continue? [y|N]: " ANSWER
+        case "${ANSWER}" in
+            y|Y) break ;;
+            n|N|"") echo "[Interrupted]"; exit 0;;
+        esac
+    done
 
-echo "$(now) Unmounting filesystems..."
-df | grep -E "^${DISK}p?[0-9]+\s" | cut -d" " -f1 | xargs --no-run-if-empty umount -f || true
+	# Write image to disk
+	xzcat "$IMAGE" | dd bs=4M of="${DISK}" status=progress
 
-# Clean up
-rm -rf "${TMP_DIR}"
+	# Refresh disk info
+    partprobe "${DISK}"
+}
 
+mount_partitions(){
+	for PART in system-boot writeable; do
+		PART_NUM="$(( PART_NUM+1 ))"
+		mkdir -p "${TMP_DIR}/${PART}"
+		mount "$(ls "${DISK}${PART_NUM}" || ls "${DISK}p${PART_NUM}")" "${TMP_DIR}/${PART}"
+	done
+}
+
+configure_first_boot(){
+	echo "$(now) Configuring first boot process..."
+	mount_partitions
+	[[ ! -e "${TMP_DIR}/system-boot/user-data" ]] || mv "${TMP_DIR}/system-boot/user-data" "${TMP_DIR}/system-boot/user-data.bak"
+	cp "${SCRIPT_DIR}/user-data" "${TMP_DIR}/system-boot"
+	for VAR in $(grep -E "%.*%" user-data | cut -d% -f2); do
+		if [[ -e "${VAR}" ]]; then
+			echo "Including $VAR"
+			ANSWER="$(cat "${VAR}")"
+		else
+			echo "Asking for $VAR"
+			read -r -p "${VAR}: " ANSWER
+		fi
+		sed -i -e "s:%${VAR}%:${ANSWER}:" "${TMP_DIR}/system-boot/user-data"
+	done
+	unmount_partitions
+}
+
+
+cleanup(){
+	# Clean up
+	rm -rf "${TMP_DIR}"
+}
+
+get_disk
+download_image
+copy_image
+configure_first_boot
+#cleanup
 echo "$(now) The device is ejected and can be safely removed."
 echo
 echo "[OK]"
