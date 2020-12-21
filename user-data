@@ -17,10 +17,14 @@ chpasswd:
   - ubuntu:%user.ubuntu.password%
 
 ssh_authorized_keys:
-  - %/home/rarnaud/.ssh/id_rsa.pub%
+  - %sh:head -1 ~rarnaud/.ssh/id_rsa.pub | cut -d" " -f1,2%
 
 # Enable password authentication with the SSH daemon
 ssh_pwauth: true
+
+# Update the system
+package_update: true
+package_upgrade: true
 
 # Reboot after first boot
 power_state:

@@ -108,16 +108,22 @@ configure_first_boot(){
 	mount_partitions
 	[[ ! -e "${TMP_DIR}/system-boot/user-data" ]] || mv "${TMP_DIR}/system-boot/user-data" "${TMP_DIR}/system-boot/user-data.bak"
 	cp "${SCRIPT_DIR}/user-data" "${TMP_DIR}/system-boot"
+	IFS_OLD="${IFS}"
+	IFS=$'\n'
 	for VAR in $(grep -E "%.*%" user-data | cut -d% -f2); do
-		if [[ -e "${VAR}" ]]; then
-			echo "Including $VAR"
-			ANSWER="$(cat "${VAR}")"
+		if [[ "${VAR:0:3}" == "sh:" ]]; then
+			echo "Running \$(sh -c \"${VAR:3}\")"
+			ANSWER="$(sh -c "${VAR:3}")"
+			echo $ANSWER
+			VAR="$(echo $VAR | sed -e 's/:/\\:/g')"
 		else
-			echo "Asking for $VAR"
+			echo "${VAR:0:3}"
 			read -r -p "${VAR}: " ANSWER
 		fi
+		echo "sed -i -e \"s:%${VAR}%:${ANSWER}:\" \"${TMP_DIR}/system-boot/user-data\""
 		sed -i -e "s:%${VAR}%:${ANSWER}:" "${TMP_DIR}/system-boot/user-data"
 	done
+	IFS="${IFS_OLD}"
 	unmount_partitions
 }
 
@@ -131,7 +137,7 @@ get_disk
 download_image
 copy_image
 configure_first_boot
-#cleanup
+cleanup
 echo "$(now) The device is ejected and can be safely removed."
 echo
 echo "[OK]"
