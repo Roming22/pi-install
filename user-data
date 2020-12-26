@@ -17,7 +17,7 @@ chpasswd:
   - ubuntu:%user.ubuntu.password%
 
 ssh_authorized_keys:
-  - %sh:head -1 ~rarnaud/.ssh/id_rsa.pub | cut -d" " -f1,2%
+  - %ssh.ubuntu.authorized_keys%
 
 # Enable password authentication with the SSH daemon
 ssh_pwauth: true
