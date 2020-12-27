@@ -16,16 +16,16 @@ microk8s(){
 }
 
 configure(){
+    # Create alias
+    mkdir -p "$HOME/bin"
+    KUBECTL="microk8s kubectl"
+    echo "${KUBECTL} \$*" > "$HOME/bin/kubectl"
+    chmod +x "$HOME/bin/kubectl"
+
     # Setup the cluster
     microk8s status --wait-ready
     microk8s enable dns dashboard storage
-    microk8s kubectl create deployment nginx --image nginx
-    microk8s kubectl expose deployment nginx --port 80 --target-port 80 --selector app=nginx --type ClusterIP --name nginx
-
-    # Create alias
-    mkdir -p "$HOME/bin"
-    echo 'microk8s kubectl $*' > "$HOME/bin/kubectl"
-    chmod +x "$HOME/bin/kubectl"    
+    $KUBECTL get all --all-namespaces
 }
 export -f configure
 

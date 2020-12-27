@@ -10,10 +10,10 @@ hostname: %host.name%
 #package_upgrade: true
 
 users:
-- name: pi
+- name: %default_user%
   shell: /bin/bash
   ssh-authorized-keys:
-    - %ssh.ubuntu.authorized_keys%
+    - %default_user.ssh.authorized_keys%
   groups:
     - ubuntu
     - docker
@@ -29,7 +29,7 @@ packages:
 
 runcmd:
   - /root/install/docker.sh
-  - /root/install/microk8s.sh
+  - /root/install/k3d.sh
   - rm -rf /root/install
 
 # Reboot after first boot
