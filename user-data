@@ -30,6 +30,7 @@ packages:
 runcmd:
   - /root/install/docker.sh
   - /root/install/k3d.sh
+  - kubectl completion bash >/etc/bash_completion.d/kubectl
   - rm -rf /root/install
 
 # Reboot after first boot
