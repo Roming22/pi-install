@@ -110,6 +110,8 @@ mount_partitions(){
 configure_first_boot(){
     echo "$(now) Configuring first boot process..."
     mount_partitions
+
+    # Generate cloud-init user-data file
     [[ ! -e "${TMP_DIR}/system-boot/user-data" ]] || mv "${TMP_DIR}/system-boot/user-data" "${TMP_DIR}/system-boot/user-data.bak"
     cp "${SCRIPT_DIR}/user-data" "${TMP_DIR}/system-boot"
     IFS_OLD="${IFS}"
@@ -119,13 +121,17 @@ configure_first_boot(){
         sed -i -e "s:%${VAR}%:${VALUE}:" "${TMP_DIR}/system-boot/user-data"
     done
     IFS="${IFS_OLD}"
+
+    # Prepare system for k8s and copy install scripts
+    sed -i -e "s:rootwait:cgroup_memory=1 cgroup_enable=memory \0:" ${TMP_DIR}/system-boot/cmdline.txt
+    cp -rf "${SCRIPT_DIR}/install" "${TMP_DIR}/writeable/root/"
+
     sync
     unmount_partitions
 }
 
 
 cleanup(){
-    # Clean up
     rm -rf "${TMP_DIR}"
 }
 

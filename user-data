@@ -6,20 +6,8 @@
 hostname: %host.name%
 
 # Update the system
-package_update: true
-package_upgrade: true
-
-# On first boot, set the (default) ubuntu user's password
-chpasswd:
-  expire: false
-  list:
-  - ubuntu:%user.ubuntu.password%
-
-ssh_authorized_keys:
-  - %ssh.ubuntu.authorized_keys%
-
-# Enable password authentication with the SSH daemon
-ssh_pwauth: true
+#package_update: true
+#package_upgrade: true
 
 users:
 - name: pi
@@ -40,13 +28,9 @@ packages:
   - software-properties-common
 
 runcmd:
-  # Install Docker (https://docs.docker.com/engine/install/ubuntu/)
-  - curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
-  - add-apt-repository "deb [arch=arm64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
-  - apt-get update -y
-  - apt-get install -y docker-ce docker-ce-cli containerd.io
-  - systemctl start docker
-  - systemctl enable docker
+  - /root/install/docker.sh
+  - /root/install/microk8s.sh
+  - rm -rf /root/install
 
 # Reboot after first boot
 power_state:
