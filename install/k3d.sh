@@ -13,7 +13,11 @@ k3d(){
 create_cluster(){
     curl -s https://raw.githubusercontent.com/rancher/k3d/main/install.sh | bash
     # Use the latest image, as 1.18 does not support a reboot
-    k3d cluster create "$USER" --image rancher/k3s:latest
+    k3d cluster create "$USER" \
+        --image rancher/k3s:latest \
+        --servers 1 \
+        --agents 3 \
+        --port 443:443@loadbalancer
     k3d kubeconfig merge "$USER" --switch-context
 }
 export -f create_cluster
