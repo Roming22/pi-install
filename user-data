@@ -21,11 +21,7 @@ users:
     - ALL=(ALL) NOPASSWD:ALL
 
 packages:
-  - apt-transport-https
-  - ca-certificates
   - curl
-  - gnupg-agent
-  - software-properties-common
 
 runcmd:
   - /root/install/docker.sh
