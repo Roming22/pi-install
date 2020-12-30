@@ -1,2 +1,3 @@
-tmp
-user-data.secret
+disk/images
+disk/tmp
+disk/user-data.secret

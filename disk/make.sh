@@ -51,7 +51,7 @@ get_disk(){
 }
 
 download_image(){
-    mkdir -p "$TMP_DIR"
+    mkdir -p "${SCRIPT_DIR}/images"
 
     echo "$(now) Downloading image..."
     unset TYPE
@@ -66,7 +66,7 @@ download_image(){
         esac
         [[ -z "$TYPE" ]] || break
     done
-    IMAGE="${TMP_DIR}/ubuntu-${UBUNTU_VERSION}-${TYPE}.img.xz"
+    IMAGE="${SCRIPT_DIR}/images/ubuntu-${UBUNTU_VERSION}-${TYPE}.img.xz"
     [[ -e "${IMAGE}" ]] || curl -o "${IMAGE}" "https://cdimage.ubuntu.com/releases/${UBUNTU_VERSION}/release/ubuntu-${UBUNTU_VERSION}-preinstalled-${TYPE}-arm64+raspi.img.xz"
 }
 
@@ -100,6 +100,7 @@ copy_image(){
 }
 
 mount_partitions(){
+    mkdir -p "${TMP_DIR}"
     for PART in system-boot writeable; do
         PART_NUM="$(( PART_NUM+1 ))"
         mkdir -p "${TMP_DIR}/${PART}"
@@ -122,9 +123,8 @@ configure_first_boot(){
     done
     IFS="${IFS_OLD}"
 
-    # Prepare system for k8s and copy install scripts
+    # Prepare system for docker/k8s
     sed -i -e "s:rootwait:cgroup_memory=1 cgroup_enable=memory \0:" ${TMP_DIR}/system-boot/cmdline.txt
-    cp -rf "${SCRIPT_DIR}/install" "${TMP_DIR}/writeable/root/"
 
     sync
     unmount_partitions
