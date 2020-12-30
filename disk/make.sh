@@ -113,15 +113,18 @@ configure_first_boot(){
     mount_partitions
 
     # Generate cloud-init user-data file
-    [[ ! -e "${TMP_DIR}/system-boot/user-data" ]] || mv "${TMP_DIR}/system-boot/user-data" "${TMP_DIR}/system-boot/user-data.bak"
-    cp "${SCRIPT_DIR}/user-data" "${TMP_DIR}/system-boot"
+    cp "${SCRIPT_DIR}/user-data" "${SCRIPT_DIR}/user-data.yml"
     IFS_OLD="${IFS}"
     IFS=$'\n'
     for VAR in $(grep -E "%.*%" user-data | cut -d% -f2); do
         VALUE=$(grep -E "^${VAR}:" "${SCRIPT_DIR}/user-data.secret" | cut -d: -f2- | sed -e "s:^ *::")
-        sed -i -e "s:%${VAR}%:${VALUE}:" "${TMP_DIR}/system-boot/user-data"
+        sed -i -e "s:%${VAR}%:${VALUE}:" "${SCRIPT_DIR}/user-data.yml"
     done
     IFS="${IFS_OLD}"
+
+    # Copy the file to the disk
+    [[ ! -e "${TMP_DIR}/system-boot/user-data" ]] || mv "${TMP_DIR}/system-boot/user-data" "${TMP_DIR}/system-boot/user-data.bak"
+    cp "${SCRIPT_DIR}/user-data.yml" "${TMP_DIR}/system-boot/user-data" 
 
     # Prepare system for docker/k8s
     sed -i -e "s:rootwait:cgroup_memory=1 cgroup_enable=memory \0:" ${TMP_DIR}/system-boot/cmdline.txt

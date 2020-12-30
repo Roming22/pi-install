@@ -23,9 +23,6 @@ users:
 packages:
   - curl
 
-runcmd:
-  - rm -rf /root/install
-
 # Reboot after first boot
 power_state:
   delay: "now"
