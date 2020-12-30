@@ -6,7 +6,6 @@ set -o pipefail
 SCRIPT_DIR="$(dirname $(realpath "$0"))"
 
 dashboard(){
-    set -x
     # Check if anything needs to be done
     GITHUB_URL=https://github.com/kubernetes/dashboard/releases
     VERSION_KUBE_DASHBOARD=$(curl -w '%{url_effective}' -I -L -s -S ${GITHUB_URL}/latest -o /dev/null | sed -e 's|.*/||')
@@ -40,6 +39,11 @@ subjects:
   namespace: kubernetes-dashboard" | kubectl create -f -
 }
 
+token(){
+    kubectl -n kubernetes-dashboard describe secret admin-user-token | grep "^token"
+}
+
 dashboard
+token
 echo
 echo "[OK]"
