@@ -13,7 +13,9 @@ generate(){
         ask "$VAR"
         echo "${VAR}: ${ANSWER}" >> "${CONFIG}"
     done
-    echo "default_user.ssh.authorized_keys: $(cat "$HOME/.ssh/id_rsa.pub" | cut -d" " -f1,2)" >> $CONFIG
+    cat << EOF >> $CONFIG
+default_user.ssh.authorized_keys: $(cat "$HOME/.ssh/id_rsa.pub" | cut -d" " -f1,2)
+EOF
 }
 
 generate

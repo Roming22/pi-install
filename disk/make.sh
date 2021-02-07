@@ -43,7 +43,7 @@ get_disk(){
         wait_for_disk
     fi
 
-    # Check that the boot disk was not found by mistakea
+    # Check that the boot disk was not found by mistake
     if [[ $(df | grep "${DISK}" | grep -c "/boot") != "0" ]]; then
         echo "Something unexpected happened. Try again." >&2
         exit 1
@@ -113,18 +113,18 @@ configure_first_boot(){
     mount_partitions
 
     # Generate cloud-init user-data file
-    cp "${SCRIPT_DIR}/user-data" "${SCRIPT_DIR}/user-data.yml"
+    cp "${SCRIPT_DIR}/user-data.template" "${SCRIPT_DIR}/user-data"
     IFS_OLD="${IFS}"
     IFS=$'\n'
     for VAR in $(grep -E "%.*%" user-data | cut -d% -f2); do
         VALUE=$(grep -E "^${VAR}:" "${SCRIPT_DIR}/user-data.secret" | cut -d: -f2- | sed -e "s:^ *::")
-        sed -i -e "s:%${VAR}%:${VALUE}:" "${SCRIPT_DIR}/user-data.yml"
+        sed -i -e "s:%${VAR}%:${VALUE}:" "${SCRIPT_DIR}/user-data"
     done
     IFS="${IFS_OLD}"
 
     # Copy the file to the disk
-    [[ ! -e "${TMP_DIR}/system-boot/user-data" ]] || mv "${TMP_DIR}/system-boot/user-data" "${TMP_DIR}/system-boot/user-data.bak"
-    cp "${SCRIPT_DIR}/user-data.yml" "${TMP_DIR}/system-boot/user-data" 
+    [[ -e "${TMP_DIR}/system-boot/user-data.default" ]] || mv "${TMP_DIR}/system-boot/user-data" "${TMP_DIR}/system-boot/user-data.default"
+    cp "${SCRIPT_DIR}/user-data" "${TMP_DIR}/system-boot/"
 
     # Prepare system for docker/k8s
     sed -i -e "s:rootwait:cgroup_memory=1 cgroup_enable=memory \0:" ${TMP_DIR}/system-boot/cmdline.txt
