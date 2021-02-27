@@ -1,0 +1,17 @@
+---
+- name: Deploy k3d cluster
+  shell: |
+    CLUSTER_NAME="k3s-$(hostname -s)-${USER}"
+    k3d cluster list "${CLUSTER_NAME}" 2>/dev/null || k3d cluster create \
+        ${CLUSTER_NAME} \
+        --agents=3 \
+        --api-port=$(shuf -i 6000-7000 -n 1) \
+        --image=rancher/k3s:latest \
+        --k3s-server-arg=--tls-san={{ ansible_facts.default_ipv4.address|default(ansible_facts.all_ipv4_addresses[0]) }} \
+        --k3s-server-arg=--tls-san={{ ansible_facts.fqdn }} \
+        --kubeconfig-switch-context \
+        --port=443:443@loadbalancer \
+        --k3s-server-arg=--cluster-domain=${CLUSTER_NAME}.local \
+        --servers=1 \
+        --timeout=120s
+    sed -i -e "s|https://0.0.0.0|https://{{ ansible_default_ipv4.address|default(ansible_all_ipv4_addresses[0]) }}|" "$HOME/.kube/config"
