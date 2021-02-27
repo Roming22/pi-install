@@ -1,7 +1,12 @@
 ---
-- name: k3d node
+- name: Default configuration
   hosts: all
-  remote_user: pi
+  gather_facts: False
+  roles:
+    - default
 
+- name: k3d nodes
+  hosts: k3d
   roles:
     - k3d
+    - kubectl

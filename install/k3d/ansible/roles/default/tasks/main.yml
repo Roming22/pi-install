@@ -1,0 +1,36 @@
+---
+# - name: Print all available facts
+#   ansible.builtin.debug:
+#     var: ansible_facts
+
+- name: Ansible etc dir
+  become: yes
+  become_user: root
+  file:
+    path: /etc/ansible/facts.d
+    state: directory
+
+- name: Ansible tmp dir
+  file:
+    path: /tmp/ansible
+    state: directory
+
+- name: Host package architecture
+  become: yes
+  become_user: root
+  shell: |
+    CPU="$(uname -m)"
+    case "${CPU}" in
+      armv5*) PACKAGE="armv5";;
+      armv6*) PACKAGE="armv6";;
+      armv7*) PACKAGE="arm";;
+      aarch64) PACKAGE="arm64";;
+      x86) PACKAGE="386";;
+      x86_64) PACKAGE="amd64";;
+      i686) PACKAGE="386";;
+      i386) PACKAGE="386";;
+      *) PACKAGE="${CPU}" ;;
+    esac
+    echo "{\"cpu\" : \"${CPU}\", \"package\" : \"${PACKAGE}\"}" > /etc/ansible/facts.d/arch.fact
+  args:
+    creates: /etc/ansible/facts.d/arch.fact

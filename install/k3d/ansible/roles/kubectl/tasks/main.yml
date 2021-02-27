@@ -1,0 +1,29 @@
+---
+- name: Download kubectl "{{ kubectl_version }}" for "{{ ansible_local.arch.package }}"
+  get_url:
+    url: https://dl.k8s.io/release/{{ kubectl_version }}/bin/linux/{{ ansible_local.arch.package }}/kubectl
+    dest: /tmp/ansible/kubectl
+
+- name: Install kubectl
+  become: yes
+  become_user: root
+  shell: |
+    install --group root --mode 755 --owner root /tmp/ansible/kubectl /usr/local/bin
+  args:
+    creates: /usr/local/bin/kubectl
+
+- name: kubectl completion
+  become: yes
+  become_user: root
+  shell: |
+    kubectl completion "$(basename "${SHELL}")" > /etc/bash_completion.d/kubectl
+  args:
+    creates: /etc/bash_completion.d/kubectl
+
+- name: kubectl fact
+  become: yes
+  become_user: root
+  shell: |
+    echo "{\"version\" : \"{{ kubectl_version }}\"}" > /etc/ansible/facts.d/kubectl
+  args:
+    creates: /etc/ansible/facts.d/kubectl
