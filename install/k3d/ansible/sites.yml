@@ -1,0 +1,7 @@
+---
+- name: k3d node
+  hosts: all
+  remote_user: pi
+
+  roles:
+    - k3d
