@@ -10,10 +10,15 @@
     path: /etc/ansible/facts.d
     state: directory
 
-- name: Ansible tmp dir
+- name: Ansible var dir
+  become: yes
+  become_user: root
   file:
-    path: /tmp/ansible
+    path: /var/ansible
     state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: 0775
 
 - name: Host package architecture
   become: yes

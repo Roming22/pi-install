@@ -1,17 +1,74 @@
 ---
+- name: Copy resources
+  ansible.builtin.copy:
+    src: ../resources
+    dest: /var/ansible
+
+# - name: Deploy local registry
+#   shell: |
+#     export NAME="k3d-registry-through-cache.localhost"
+#     docker inspect "${NAME}" >/dev/null || docker run \
+#       --detach \
+#       --env REGISTRY_PROXY_REMOTEURL="https://registry-1.docker.io" \
+#       --label app="k3d" \
+#       --label k3d.cluster="" \
+#       --label k3d.registry.host="" \
+#       --label k3d.registry.hostIP="0.0.0.0" \
+#       --label k3d.role="registry" \
+#       --label k3d.version="v4.2.0" \
+#       --label k3s.registry.port.internal="5000"\
+#       --name="${NAME}" \
+#       --publish 5000:5000 \
+#       --restart=always \
+#       registry || exit 1
+#     while ! curl -s http://localhost:5000/v2/_catalog; do \
+#       sleep 2; \
+#     done
+#     k3d registry list k3d-registry.localhost || k3d registry create registry.localhost -p 5000
+
 - name: Deploy k3d cluster
   shell: |
     CLUSTER_NAME="k3s-$(hostname -s)-${USER}"
     k3d cluster list "${CLUSTER_NAME}" 2>/dev/null || k3d cluster create \
         ${CLUSTER_NAME} \
-        --agents=3 \
+        --agents=1 \
         --api-port=$(shuf -i 6000-7000 -n 1) \
         --image=rancher/k3s:latest \
+        --k3s-server-arg=--cluster-domain=${CLUSTER_NAME}.local \
         --k3s-server-arg=--tls-san={{ ansible_facts.default_ipv4.address|default(ansible_facts.all_ipv4_addresses[0]) }} \
         --k3s-server-arg=--tls-san={{ ansible_facts.fqdn }} \
         --kubeconfig-switch-context \
         --port=443:443@loadbalancer \
-        --k3s-server-arg=--cluster-domain=${CLUSTER_NAME}.local \
         --servers=1 \
-        --timeout=120s
+        --timeout=120s \
+        --volume /mnt/nas/cluster/k3d:/mnt/cluster || exit 1
     sed -i -e "s|https://0.0.0.0|https://{{ ansible_default_ipv4.address|default(ansible_all_ipv4_addresses[0]) }}|" "$HOME/.kube/config"
+    while kubectl get pods --all-namespaces | grep -E -q -v " STATUS | Running | Completed "; do \
+      sleep 5 ; \
+    done
+
+- name: Deploy rancher
+  shell: |
+    kubectl create -f /var/ansible/resources/rancher.yml
+
+- name: Validate Traefik deployment
+  shell: |
+    # Make sure traefik is created before checking state
+    while kubectl --namespace kube-system get service traefik | grep -q pending; do sleep 5; done
+
+- name: Validate Rancher deployment
+  shell: |
+    date
+    while ! curl -k -s "https://{{ ansible_default_ipv4.address|default(ansible_all_ipv4_addresses[0]) }}/" \
+        | grep -E -q "{.*}"; do
+      sleep 5;
+    done
+    date
+
+- name: Deploy PV
+  shell: |
+    kubectl create -f /var/ansible/resources/persistent-volume.yml
+
+- name: Deploy alpine
+  shell: |
+    kubectl create -f /var/ansible/resources/alpine.yml

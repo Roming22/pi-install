@@ -1,0 +1,29 @@
+---
+apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata:
+  name: rancher
+  namespace: kube-system
+spec:
+  chart: rancher
+  repo: https://releases.rancher.com/server-charts/latest
+  set:
+    addLocal: "true"
+    tls: external
+  targetNamespace: kube-system
+
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: rancher-ingress
+  namespace: kube-system
+  annotations:
+    kubernetes.io/ingress.class: traefik
+spec:
+  rules:
+    - http:
+        paths:
+          - backend:
+              serviceName: rancher
+              servicePort: 80

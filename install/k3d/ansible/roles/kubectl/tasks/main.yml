@@ -2,13 +2,13 @@
 - name: Download kubectl "{{ kubectl_version }}" for "{{ ansible_local.arch.package }}"
   get_url:
     url: https://dl.k8s.io/release/{{ kubectl_version }}/bin/linux/{{ ansible_local.arch.package }}/kubectl
-    dest: /tmp/ansible/kubectl
+    dest: /var/ansible/kubectl
 
-- name: Install kubectl
+- name: kubectl install
   become: yes
   become_user: root
   shell: |
-    install --group root --mode 755 --owner root /tmp/ansible/kubectl /usr/local/bin
+    install --group root --mode 755 --owner root /var/ansible/kubectl /usr/local/bin
   args:
     creates: /usr/local/bin/kubectl
 

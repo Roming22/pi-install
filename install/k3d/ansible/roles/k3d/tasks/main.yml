@@ -2,15 +2,15 @@
 - name: Download k3d "{{ k3d_version }}"
   get_url:
     url: https://raw.githubusercontent.com/rancher/k3d/main/install.sh
-    dest: /tmp/ansible/install_k3d.sh
+    dest: /var/ansible/install_k3d.sh
 
-- name: Install k3d
+- name: k3d install
   shell: |
-    cat /tmp/ansible/install_k3d.sh | TAG="{{ k3d_version }}" bash
+    cat /var/ansible/install_k3d.sh | TAG="{{ k3d_version }}" bash
   args:
     creates: /usr/local/bin/k3d
 
-- name: k3d completion
+- name: k3d bash completion
   become: yes
   become_user: root
   shell: |

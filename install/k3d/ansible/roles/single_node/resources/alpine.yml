@@ -1,0 +1,27 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alpine
+spec:
+  selector:
+    matchLabels:
+      app: alpine
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: alpine
+    spec:
+      volumes:
+        - name: local-pv-storage
+          persistentVolumeClaim:
+            claimName: local-pv-claim
+      containers:
+        - image: alpine
+          name: alpine
+          volumeMounts:
+            - mountPath: "/mnt/nas"
+              name: local-pv-storage
+          command: ["sleep", "infinity"]
