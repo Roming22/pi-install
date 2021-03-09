@@ -28,3 +28,13 @@ power_state:
   delay: "now"
   message: Device is configured and up to date. Rebooting...
   mode: reboot
+
+write_files:
+  - content: |
+      #!/bin/bash -e
+      apt-get update
+      apt-get upgrade --yes
+      [[ -e "/var/run/reboot-required" ]] && reboot
+    owner: root:root
+    path: /etc/cron.hourly/system-upgrade
+    permissions: "0744"
