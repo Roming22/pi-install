@@ -8,11 +8,11 @@
 - name: k3d nodes
   hosts: k3d
   roles:
+    - docker
     - k3d
     - kubectl
 
 - name: single node clusters
   hosts: k3d:single_nodes
-
   roles:
     - single_node

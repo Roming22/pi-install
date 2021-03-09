@@ -9,17 +9,6 @@ hostname: "{{ host.name }}"
 package_update: true
 package_upgrade: true
 
-users:
-  - name: "{{ default_user }}"
-    shell: /bin/bash
-    ssh-authorized-keys:
-      - "{{ default_user.ssh.authorized_keys }}"
-    groups:
-      - ubuntu
-      - docker
-    sudo:
-      - ALL=(ALL) NOPASSWD:ALL
-
 packages:
   - curl
 
@@ -28,6 +17,16 @@ power_state:
   delay: "now"
   message: Device is configured and up to date. Rebooting...
   mode: reboot
+
+users:
+  - name: "{{ default_user }}"
+    shell: /bin/bash
+    ssh-authorized-keys:
+      - "{{ default_user.ssh.authorized_keys }}"
+    groups:
+      - ubuntu
+    sudo:
+      - ALL=(ALL) NOPASSWD:ALL
 
 write_files:
   - content: |
