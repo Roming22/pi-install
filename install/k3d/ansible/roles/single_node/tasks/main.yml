@@ -13,22 +13,20 @@
     mode: "0777"
 
 - name: Install dependencies
-  become: yes
-  become_user: root
   apt:
     name:
-      - nfs-common
+      - cifs-utils
     state: present
 
 - name: Mount NAS
   become: yes
   become_user: root
   ansible.posix.mount:
-    src: 192.168.72.10:/volume1/cluster
+    src: //192.168.72.10/cluster
     path: /mnt/nas
-    opts: rw,sync
+    opts: "credentials={{ ansible_facts.user_dir }}/.smb_passwords,uid={{ ansible_facts.user_uid }},gid={{ ansible_facts.user_gid }}"
     state: mounted
-    fstype: nfs
+    fstype: cifs
 
 - name: Deploy local registry with pull-through cache
   shell: |
@@ -55,7 +53,8 @@
         --registry-config="/var/ansible/resources/k3s/registry.yml" \
         --servers=1 \
         --timeout=120s \
-        --volume /mnt/nas/k3s/storage:/var/lib/rancher/k3s/storage || exit 1
+        --volume /mnt/nas/k3s/storage/persistentvolumes:/mnt/nas \
+        --volume /mnt/nas/k3s/storage/storageclasses/local-path:/var/lib/rancher/k3s/storage || exit 1
     sed -i -e "s|https://0.0.0.0|https://$(hostname -i | cut -d" " -f1)|" "$HOME/.kube/config"
     while kubectl get pods --all-namespaces | grep -E -q -v " STATUS | Running | Completed "; do \
       sleep 5 ; \
@@ -78,10 +77,6 @@
       sleep 5;
     done
     date
-
-- name: Deploy alpine
-  shell: |
-    kubectl apply -f /var/ansible/resources/k8s/alpine.yml
 
 - name: System upgrade
   shell: |
