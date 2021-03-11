@@ -4,27 +4,39 @@
     src: ../resources
     dest: /var/ansible
 
-# - name: Deploy local registry
-#   shell: |
-#     export NAME="k3d-registry-through-cache.localhost"
-#     docker inspect "${NAME}" >/dev/null || docker run \
-#       --detach \
-#       --env REGISTRY_PROXY_REMOTEURL="https://registry-1.docker.io" \
-#       --label app="k3d" \
-#       --label k3d.cluster="" \
-#       --label k3d.registry.host="" \
-#       --label k3d.registry.hostIP="0.0.0.0" \
-#       --label k3d.role="registry" \
-#       --label k3d.version="v4.2.0" \
-#       --label k3s.registry.port.internal="5000"\
-#       --name="${NAME}" \
-#       --publish 5000:5000 \
-#       --restart=always \
-#       registry || exit 1
-#     while ! curl -s http://localhost:5000/v2/_catalog; do \
-#       sleep 2; \
-#     done
-#     k3d registry list k3d-registry.localhost || k3d registry create registry.localhost -p 5000
+- name: Create a directory if it does not exist
+  become: yes
+  become_user: root
+  ansible.builtin.file:
+    path: /mnt/nas
+    state: directory
+    mode: "0777"
+
+- name: Install dependencies
+  become: yes
+  become_user: root
+  apt:
+    name:
+      - nfs-common
+    state: present
+
+- name: Mount NAS
+  become: yes
+  become_user: root
+  ansible.posix.mount:
+    src: 192.168.72.10:/volume1/cluster
+    path: /mnt/nas
+    opts: rw,sync
+    state: mounted
+    fstype: nfs
+
+- name: Deploy local registry with pull-through cache
+  shell: |
+    docker build --tag registry-ptc:2 --file /var/ansible/resources/docker/registry/Dockerfile /var/ansible/resources/docker/registry
+    k3d registry list k3d-registry.localhost || k3d registry create registry.localhost --image registry-ptc:2 -p 5000
+    while ! curl -s http://localhost:5000/v2/_catalog; do
+      sleep 2
+    done
 
 - name: Deploy k3d cluster
   shell: |
@@ -35,21 +47,23 @@
         --api-port=$(shuf -i 6000-7000 -n 1) \
         --image=rancher/k3s:latest \
         --k3s-server-arg=--cluster-domain=${CLUSTER_NAME}.local \
-        --k3s-server-arg=--tls-san={{ ansible_facts.default_ipv4.address|default(ansible_facts.all_ipv4_addresses[0]) }} \
-        --k3s-server-arg=--tls-san={{ ansible_facts.fqdn }} \
+        --k3s-server-arg=--tls-san=$(hostname -i | cut -d" " -f1) \
+        --k3s-server-arg=--tls-san=$(hostname -f) \
         --kubeconfig-switch-context \
         --port=443:443@loadbalancer \
+        --registry-use=k3d-registry.localhost:5000 \
+        --registry-config="/var/ansible/resources/k3s/registry.yml" \
         --servers=1 \
         --timeout=120s \
-        --volume /mnt/nas/cluster/k3d:/mnt/cluster || exit 1
-    sed -i -e "s|https://0.0.0.0|https://{{ ansible_default_ipv4.address|default(ansible_all_ipv4_addresses[0]) }}|" "$HOME/.kube/config"
+        --volume /mnt/nas/k3s/storage:/var/lib/rancher/k3s/storage || exit 1
+    sed -i -e "s|https://0.0.0.0|https://$(hostname -i | cut -d" " -f1)|" "$HOME/.kube/config"
     while kubectl get pods --all-namespaces | grep -E -q -v " STATUS | Running | Completed "; do \
       sleep 5 ; \
     done
 
 - name: Deploy rancher
   shell: |
-    kubectl create -f /var/ansible/resources/rancher.yml
+    kubectl apply -f /var/ansible/resources/k8s/rancher.yml
 
 - name: Validate Traefik deployment
   shell: |
@@ -59,16 +73,16 @@
 - name: Validate Rancher deployment
   shell: |
     date
-    while ! curl -k -s "https://{{ ansible_default_ipv4.address|default(ansible_all_ipv4_addresses[0]) }}/" \
+    while ! curl -k -s "https://$(hostname -i | cut -d" " -f1)/" \
         | grep -E -q "{.*}"; do
       sleep 5;
     done
     date
 
-- name: Deploy PV
-  shell: |
-    kubectl create -f /var/ansible/resources/persistent-volume.yml
-
 - name: Deploy alpine
   shell: |
-    kubectl create -f /var/ansible/resources/alpine.yml
+    kubectl apply -f /var/ansible/resources/k8s/alpine.yml
+
+- name: System upgrade
+  shell: |
+    kubectl apply -f https://github.com/rancher/system-upgrade-controller/releases/download/v0.6.2/system-upgrade-controller.yaml

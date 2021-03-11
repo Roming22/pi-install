@@ -1,4 +1,18 @@
 ---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: alpine-pvc
+  namespace: default
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: local-path
+  volumeMode: Filesystem
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -15,13 +29,13 @@ spec:
         app: alpine
     spec:
       volumes:
-        - name: local-pv-storage
+        - name: nas
           persistentVolumeClaim:
-            claimName: local-pv-claim
+            claimName: alpine-pvc
       containers:
         - image: alpine
           name: alpine
           volumeMounts:
             - mountPath: "/mnt/nas"
-              name: local-pv-storage
+              name: nas
           command: ["sleep", "infinity"]
