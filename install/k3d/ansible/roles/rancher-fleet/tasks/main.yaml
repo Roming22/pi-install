@@ -1,0 +1,18 @@
+---
+- name: Deploy rancher
+  shell: |
+    kubectl apply -f /var/ansible/resources/k8s/rancher.yml
+
+- name: Validate Traefik deployment
+  shell: |
+    # Make sure traefik is created before checking state
+    while kubectl --namespace kube-system get service traefik | grep -q pending; do sleep 5; done
+
+- name: Validate Rancher deployment
+  shell: |
+    date
+    while ! curl -k -s "https://$(hostname -i | cut -d" " -f1)/" \
+        | grep -E -q "{.*}"; do
+      sleep 5;
+    done
+    date
