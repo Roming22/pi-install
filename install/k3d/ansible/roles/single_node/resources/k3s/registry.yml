@@ -1,4 +1,4 @@
 mirrors:
-  docker.io:
+  local.registry:
     endpoint:
       - http://k3d-registry.localhost:5000

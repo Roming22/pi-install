@@ -1,38 +1,13 @@
 ---
 - name: Copy resources
   ansible.builtin.copy:
-    src: ../resources
-    dest: /var/ansible
+    src: ../resources/
+    dest: /var/ansible/resources/
 
-- name: Create a directory if it does not exist
-  become: yes
-  become_user: root
-  ansible.builtin.file:
-    path: /mnt/nas
-    state: directory
-    mode: "0777"
-
-- name: Install dependencies
-  apt:
-    name:
-      - cifs-utils
-    state: present
-
-- name: Mount NAS
-  become: yes
-  become_user: root
-  ansible.posix.mount:
-    src: //192.168.72.10/cluster
-    path: /mnt/nas
-    opts: "credentials={{ ansible_facts.user_dir }}/.smb_passwords,uid={{ ansible_facts.user_uid }},gid={{ ansible_facts.user_gid }}"
-    state: mounted
-    fstype: cifs
-
-- name: Deploy local registry with pull-through cache
+- name: Deploy local registry
   shell: |
-    docker build --tag registry-ptc:2 --file /var/ansible/resources/docker/registry/Dockerfile /var/ansible/resources/docker/registry
-    k3d registry list k3d-registry.localhost || k3d registry create registry.localhost --image registry-ptc:2 -p 5000
-    while ! curl -s http://localhost:5000/v2/_catalog; do
+    k3d registry list k3d-registry.localhost || k3d registry create registry.localhost -p 5000
+    while ! curl -s http://k3d-registry.localhost:5000/v2/_catalog; do
       sleep 2
     done
 
@@ -59,24 +34,6 @@
     while kubectl get pods --all-namespaces | grep -E -q -v " STATUS | Running | Completed "; do \
       sleep 5 ; \
     done
-
-- name: Deploy rancher
-  shell: |
-    kubectl apply -f /var/ansible/resources/k8s/rancher.yml
-
-- name: Validate Traefik deployment
-  shell: |
-    # Make sure traefik is created before checking state
-    while kubectl --namespace kube-system get service traefik | grep -q pending; do sleep 5; done
-
-- name: Validate Rancher deployment
-  shell: |
-    date
-    while ! curl -k -s "https://$(hostname -i | cut -d" " -f1)/" \
-        | grep -E -q "{.*}"; do
-      sleep 5;
-    done
-    date
 
 - name: System upgrade
   shell: |
