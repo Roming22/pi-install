@@ -1,0 +1,31 @@
+---
+- name: Copy resources
+  ansible.builtin.copy:
+    src: ../resources/
+    dest: /var/ansible/resources/
+
+- name: Create a directory if it does not exist
+  become: yes
+  become_user: root
+  ansible.builtin.file:
+    path: /mnt/nas
+    state: directory
+    mode: "0777"
+
+- name: Install dependencies
+  become: yes
+  become_user: root
+  apt:
+    name:
+      - cifs-utils
+    state: present
+
+- name: Mount NAS
+  become: yes
+  become_user: root
+  ansible.posix.mount:
+    src: //192.168.72.10/cluster
+    path: /mnt/nas
+    opts: "credentials=/var/ansible/resources/nas/credentials.secret,gid=9999,uid=9999,x-systemd.automount"
+    state: mounted
+    fstype: cifs
