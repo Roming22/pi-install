@@ -17,15 +17,14 @@
   become_user: root
   apt:
     name:
-      - cifs-utils
+      - nfs-common
     state: present
 
 - name: Mount NAS
   become: yes
   become_user: root
   ansible.posix.mount:
-    src: //192.168.72.10/cluster
+    src: 192.168.72.10:/volume1/cluster
     path: /mnt/nas
-    opts: "credentials=/var/ansible/resources/nas/credentials.secret,gid=9999,uid=9999,x-systemd.automount"
     state: mounted
-    fstype: cifs
+    fstype: nfs
