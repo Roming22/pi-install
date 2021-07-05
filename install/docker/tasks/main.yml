@@ -49,3 +49,9 @@
     name: docker
     state: started
     enabled: true
+
+- name: Reboot the machine to guarantee that groups have been applied
+  become: yes
+  become_user: root
+  reboot:
+    reboot_timeout: 300
