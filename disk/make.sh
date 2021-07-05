@@ -71,11 +71,11 @@ download_image(){
 }
 
 unmount_partitions(){
-    df | grep -E "^${DISK}p?[0-9]+\s" | cut -d" " -f1 | while read PARTITION; do
+    PARTITIONS=( $(df | grep -E "^${DISK}p?[0-9]+\s" | cut -d" " -f1) ) || true
+    for PARTITION in ${PARTITIONS[@]}; do
         umount -l $PARTITION
         umount -f $PARTITION || true
     done
-    
 }
 
 copy_image(){
