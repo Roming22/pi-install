@@ -1,0 +1,15 @@
+{
+    "bin": {
+        "curl": "$BIN_CURL",
+        "docker": "$BIN_DOCKER",
+        "k3d": "$BIN_K3D",
+        "kubectl": "$BIN_KUBECTL"
+    },
+    "cluster": "$CLUSTER",
+    "deploy": {
+        "system-upgrade-controller": "$DEPLOY_SYS_UPGRADE"
+    },
+    "name": "$NAME",
+    "nas": "$NAS",
+    "registry": "$REGISTRY"
+}

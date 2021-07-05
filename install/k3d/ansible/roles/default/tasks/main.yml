@@ -3,6 +3,11 @@
 #   ansible.builtin.debug:
 #     var: ansible_facts
 
+- name: Copy resources
+  ansible.builtin.copy:
+    src: ../resources/
+    dest: /var/ansible/resources/facts
+
 - name: Ansible etc dir
   become: yes
   become_user: root
@@ -36,6 +41,25 @@
       i386) PACKAGE="386";;
       *) PACKAGE="${CPU}" ;;
     esac
-    echo "{\"cpu\" : \"${CPU}\", \"package\" : \"${PACKAGE}\"}" > /etc/ansible/facts.d/arch.fact
+    export CPU
+    export PACKAGE
+    envsubst < /var/ansible/resources/facts/arch.fact > /etc/ansible/facts.d/arch.fact
   args:
     creates: /etc/ansible/facts.d/arch.fact
+
+- name: k3d facts
+  become: yes
+  become_user: root
+  shell: |
+    export BIN_CURL="$(curl --version 2>/dev/null | head -1 | sed -e "s/[^0-9]*//" -e "s/[^0-9.].*//")"
+    export BIN_DOCKER="$(docker --version 2>/dev/null | sed -e "s/[^0-9]*//" -e "s/[^0-9.].*//")"
+    export BIN_K3D="$(k3d --version 2>/dev/null | head -1 | sed -e "s/.*v//")"
+    export BIN_KUBECTL="$(kubectl --kubeconfig=/home/{{ ansible_user }}/.kube/config version --short 2>/dev/null | head -1 | sed -e "s/.*v//")"
+    export CLUSTER="$(k3d cluster list $(hostname -s)-{{ ansible_user }} 2>/dev/null | tail -n +2 | cut -d" " -f1)"
+    export DEPLOY_SYS_UPGRADE="$(kubectl --kubeconfig=/home/{{ ansible_user }}/.kube/config get deployment system-upgrade-controller -n system-upgrade -o yaml 2>/dev/null | grep " image:" | sed -e "s/.*v//")"
+    export NAME="$(hostname -s)-{{ ansible_user }}"
+    export NAS="$(df | grep -E " /mnt/nas$" | cut -d" " -f1)"
+    export REGISTRY="$(k3d registry list registry.localhost 2>/dev/null | tail -n +2 | cut -d" " -f1)"
+    cat /var/ansible/resources/facts/k3d.fact | envsubst > /etc/ansible/facts.d/k3d.fact
+  args:
+    creates: /etc/ansible/facts.d/k3d.fact

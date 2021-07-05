@@ -12,17 +12,22 @@
     src: ../resources/
     dest: /var/ansible/resources/
 
+- name: Sanity check before moving on
+  shell: exit 1
+  when: ansible_local["k3d"]["nas"] == ""
+
 - name: Deploy local registry
   shell: |
-    k3d registry list registry.localhost || k3d registry create registry.localhost -p 5000
+    k3d registry create registry.localhost -p 5000
     while ! curl -s http://k3d-registry.localhost:5000/v2/_catalog; do
       sleep 2
     done
+  when: ansible_local["k3d"]["registry"] == ""
 
 - name: Deploy k3d cluster
   shell: |
     CLUSTER_NAME="$(hostname -s)-${USER}"
-    k3d cluster list "${CLUSTER_NAME}" 2>/dev/null || k3d cluster create \
+    k3d cluster create \
         ${CLUSTER_NAME} \
         --agents=1 \
         --api-port=$(shuf -i 6000-7000 -n 1) \
@@ -42,7 +47,9 @@
     while kubectl get pods --all-namespaces | grep -E -q -v " STATUS | Running | Completed "; do \
       sleep 5 ; \
     done
+  when: ansible_local["k3d"]["cluster"] == ""
 
 - name: System upgrade
   shell: |
     kubectl apply -f https://github.com/rancher/system-upgrade-controller/releases/download/v0.7.0/system-upgrade-controller.yaml
+  when: ansible_local["k3d"]["deploy"]["system-upgrade-controller"] != "0.7.0"

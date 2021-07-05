@@ -1,0 +1,4 @@
+{
+    "cpu": "${CPU}",
+    "package": "${PACKAGE}"
+}
