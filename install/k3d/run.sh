@@ -8,5 +8,4 @@ ansible-playbook -v -i "${ANSIBLE_DIR}/hosts.yml" "${ANSIBLE_DIR}/sites.yml"
 scp "${TARGET}:.kube/config" /home/rarnaud/.kube/config
 cat ~/.kube/config
 kubectl get nodes
-curl -k -s "https://${TARGET}/"
 date
