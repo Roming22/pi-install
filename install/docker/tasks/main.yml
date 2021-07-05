@@ -39,7 +39,7 @@
   become_user: root
   user:
     name: "{{ ansible_user }}"
-    groups: docker
+    groups: ["docker"]
     append: true
 
 - name: Ensure Docker is started and enabled at boot

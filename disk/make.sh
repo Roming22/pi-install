@@ -3,7 +3,7 @@ set -o pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")"; pwd)"
 #set -x
 DISK="$1"
-UBUNTU_VERSION="20.10"
+UBUNTU_VERSION="21.04"
 TMP_DIR="${SCRIPT_DIR}/tmp"
 
 now(){
